@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.situ.ssm.mapper.StudentMapper">
+	<sql id="studentColums">
+		id,name,age,gender,address
+	</sql>
+	
+	<!-- resultMap最终是要将结果映射到Student上，
+		type:就是指定映射到哪一个pojo上 。
+		当实体属性名字和表的字段名字不相同时候，必须要写映射。
+		当实体属性名字和表的字段名字相同时候，这个映射是可选。-->
+	<resultMap type="Student" id="studentMap">
+		<!-- 映射主键属性：如果有多个字段，则定义多个id-->
+		<!-- property: 主键在pojo中的属性名 -->
+		<!-- column:主键在数据库中的列明  -->
+		<id property="id" column="id"/>
+		<!-- result定义普通属性 -->
+		<result property="name" column="name"/>
+		<result property="age" column="age"/>
+		<result property="gender" column="gender"/>
+	</resultMap>
+
+	<!-- 查找所有 -->
+	<select id="findAll" resultMap="studentMap">
+		SELECT id,name,age,gender,address FROM student
+	</select>
+
+	<!-- 通过id查找学生  reference-->
+	<select id="findById" parameterType="java.lang.Integer" resultType="Student">
+		select <include refid="studentColums"/> from student where id=#{id}
+	</select>
+	
+	
+	
+	<!-- 根据名字模糊查找 -->
+	<select id="findByName" parameterType="string" resultType="Student">
+		SELECT * FROM student WHERE NAME LIKE '%${value}%'
+	</select>
+	
+	<!-- 根据SearchVO中Student名字模糊查找 -->
+	<select id="findBySearchVO" parameterType="SearchVO" resultType="Student">
+		SELECT * FROM student WHERE NAME LIKE '%${student.name}%'
+	</select>
+	
+	<select id="findByPage1" parameterType="map" resultType="Student">
+		SELECT <include refid="studentColums"/> from student limit #{offset},#{pageSize}
+	</select>
+	
+	<select id="findByPage" resultType="Student">
+		SELECT <include refid="studentColums"/> from student limit #{offset},#{pageSize}
+	</select>
+	
+	<!-- 查询一共有多少学生 -->
+	<select id="count" resultType="int">
+		select count(*) from student
+	</select>
+	
+	<!-- 添加 -->
+	<insert id="save" parameterType="Student">
+		INSERT INTO student(NAME,age,gender,address)
+		VALUES(#{name},#{age},#{gender},#{address});
+	</insert>
+	
+	<!-- 根据id删除 -->
+	<delete id="deleteById" parameterType="int">
+		delete from student where id=#{id}
+	</delete>
+	
+	<!-- 删除 -->
+	<delete id="delete" parameterType="Student">
+		delete from student where id=#{id}
+	</delete>
+	
+	<!-- 更新 -->
+	<update id="update" parameterType="Student">
+		update student
+		set name=#{name},age=#{age},gender=#{gender},address=#{address}
+		where id=#{id}
+	</update>
+	
+	
+	<!-- 动态拼接sql -->
+	<select id="findByCondition" parameterType="SearchVO" resultMap="studentMap">
+		select <include refid="studentColums"/> 
+		from student
+		<!-- where 标签可以自动添加where，同时处理sql语句中第一个and关键字 -->
+		<where>
+			<if test="name!=null">
+				and name like '%${name}%'
+			</if>
+			<if test="gender!=null and gender!='' ">
+				and gender = trim(#{gender})
+			</if>
+		</where>
+	</select>
+	
+	<!-- trim -->
+	<select id="findByConditionTrim" parameterType="SearchVO" resultMap="studentMap">
+		select <include refid="studentColums"/> 
+		from student
+		<!-- prefix:使用前缀
+			  prefixOverrides="AND|OR" :去掉第一个and或者or
+		 -->
+		<trim prefix="WHERE" prefixOverrides="AND|OR">
+			<if test="name!=null">
+				and name like '%${name}%'
+			</if>
+			<if test="gender!=null and gender!='' ">
+				and gender = trim(#{gender})
+			</if>
+		</trim>
+	</select>
+	
+	<!-- 动态更新 -->
+	<update id="dynamicUpdate" parameterType="Student">
+		update student
+		<!-- set标签会自动判断哪一个是最后一个字段，最自动去掉最后一个的“，” -->
+		<set>
+			<if test="name!=null">
+				name=#{name},
+			</if>
+			<if test="age!=null">
+				age=#{age},
+			</if>
+			<if test="gender!=null">
+				gender=#{gender},
+			</if>
+			<if test="address!=null">
+				address=#{address},
+			</if>
+		</set>
+		where id=#{id}
+	</update>
+	
+	<update id="dynamicUpdateTrim" parameterType="Student">
+		update student
+		<!-- prefix:使用前缀
+			suffixOverrides=","  : 去掉最后一个"，"
+		 -->
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="name!=null">
+				name=#{name},
+			</if>
+			<if test="age!=null">
+				age=#{age},
+			</if>
+			<if test="gender!=null">
+				gender=#{gender},
+			</if>
+			<if test="address!=null">
+				address=#{address},
+			</if>
+		</trim>
+		where id=#{id}
+	</update>
+	
+	<!-- 根据多个id查询学生信息 -->
+	<select id="findByIdArray" resultMap="studentMap">
+		<!-- select * from student where id in(1,2,3,4); -->
+		select <include refid="studentColums"/>
+		from student
+		<where>
+			id in
+			<!-- 下面的foreach就是为了拼接处：(1,2,3,4)
+				foreach用于迭代数组元素
+				open：表示开始符号
+				close：表示结束符号
+				separator：表示元素间的分隔符
+				item:表示迭代的元素
+			 -->
+			<foreach collection="array" item="id" open="(" close=")" separator="," >
+				#{id}
+			</foreach>
+		</where>
+	</select>
+	
+	<select id="findByIdList" resultMap="studentMap">
+		<!-- select * from student where id in(1,2,3,4); -->
+		select <include refid="studentColums"/>
+		from student
+		<where>
+			id in
+			<foreach collection="list" item="id" open="(" close=")" separator="," >
+				#{id}
+			</foreach>
+		</where>
+	</select>
+	
+	<select id="findBySearchVIO" parameterType="SearchVO" resultMap="studentMap">
+		<!-- select * from student where id in(1,2,3,4); -->
+		select <include refid="studentColums"/>
+		from student
+		<where>
+			id in
+			<foreach collection="idList" item="id" open="(" close=")" separator="," >
+				#{id}
+			</foreach>
+		</where>
+	</select>
+	
+	<select id="findBySearchVIOIf" parameterType="SearchVO" resultMap="studentMap">
+		select <include refid="studentColums"/>
+		from student 
+		<where>
+			<choose>
+				<when test="name!=null and name!='' ">
+					and name like '%${name}%'
+				</when>
+				<when test="age!=null ">
+					and age = #{age}
+				</when>
+				<when test="gender!=null and gender!='' ">
+					and gender = #{gender}
+				</when>
+				<otherwise>
+					and address='青岛'
+				</otherwise>
+			</choose>
+		</where>
+	</select>
+	
+	<select id="getTotalCountByCondition" parameterType="StudentSearchCondition" resultType="int">
+		select count(*)
+		from student
+		<where>
+			<if test="name!=null and name!='' ">
+				and name like '%${name}%'
+			</if>
+			<if test="age!=null ">
+				and age = #{age}
+			</if>
+			<if test="gender!=null and gender!='' ">
+				and stu_gender = #{gender}
+			</if>
+		</where>
+	</select>
+	
+	<select id="findPageBeanListByCondition1" resultMap="studentMap">
+		select <include refid="studentColums"/>
+		from student
+		<where>
+			<if test="condition.name!=null and condition.name!='' ">
+				and name like '%${condition.name}%'
+			</if>
+			<if test="condition.age!=null ">
+				and age = #{condition.age}
+			</if>
+			<if test="condition.gender!=null and condition.gender!='' ">
+				and stu_gender = #{condition.gender}
+			</if>
+		</where>
+		limit (${condition.pageNo}-1)*${condition.pageSize},${condition.pageSize}
+	</select>
+	
+	<select id="findPageBeanListByCondition" resultMap="studentMap">
+		select <include refid="studentColums"/>
+		from student
+		<where>
+			<if test="name!=null and name!='' ">
+				and name like '%${name}%'
+			</if>
+			<if test="age!=null ">
+				and age = #{age}
+			</if>
+			<if test="gender!=null and gender!='' ">
+				and stu_gender = #{gender}
+			</if>
+		</where>
+		limit (${pageNo}-1)*#{pageSize},#{pageSize}
+	</select>
+	
+	<resultMap type="Student" id="studentInfoMap">
+		<id property="id" column="id"/>
+		<result property="name" column="name"/>
+		<result property="gender" column="gender"/>
+		<result property="address" column="address"/>
+		<association property="banji" javaType="Banji">
+			<result property="name" column="banjiName"/>
+			<collection property="courseList" ofType="Course">
+				<result property="name" column="courseName"/>
+				<result property="credit" column="credit"/>
+			</collection>
+		</association>
+	</resultMap>
+	
+	<select id="findStudentInfoById" parameterType="int" resultMap="studentInfoMap">
+		SELECT s.id,s.name,s.gender,s.address,b.name AS banjiName,c.NAME AS courseName,c.credit
+		FROM student AS s INNER JOIN banji AS b
+		ON s.banji_id=b.id
+		INNER JOIN banji_course AS bc 
+		ON b.id=bc.banji_id
+		INNER JOIN course AS c
+		ON c.id=bc.course_id
+		WHERE s.id=#{studentId};
+	</select>
+	
+	<insert id="add" parameterType="Student">
+		insert into student(name,age,banji_id)
+		values(#{name},#{age},#{banji.id})
+	</insert>
+	
+</mapper>
